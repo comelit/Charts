@@ -411,6 +411,36 @@ open class BarChartRenderer: BarLineScatterCandleBubbleRenderer
         let isStacked = dataSet.isStacked
         let stackSize = isStacked ? dataSet.stackSize : 1
 
+        func getIndicesOfTopBar() -> Set<Int>
+        {
+
+            if !(dataSet.roundRadiusWidthMultiplier > 0.0)
+            {
+                return Set()
+            }
+
+            var indices = Set<Int>()
+            for i in stride(from: 0, to: buffer.rects.count, by: stackSize)
+            {
+                let rects = Array(buffer.rects[i...i+stackSize - 1])
+
+                for index in (0..<rects.count).reversed()
+                {
+                    let rect = rects[index]
+
+                    if rect.height > 0 || index == 0
+                    {
+                        indices.insert(i + index)
+                        break
+                    }
+                }
+            }
+
+            return indices
+        }
+
+        let topRectIndices = Set(getIndicesOfTopBar())
+        
         for j in stride(from: 0, to: buffer.rects.count, by: 1)
         {
             let barRect = buffer.rects[j]
@@ -431,8 +461,25 @@ open class BarChartRenderer: BarLineScatterCandleBubbleRenderer
                 context.setFillColor(dataSet.color(atIndex: j).cgColor)
             }
             
-            context.fill(barRect)
-            
+            if topRectIndices.contains(j)
+            {
+                var radius: CGFloat = barRect.width * dataSet.roundRadiusWidthMultiplier
+                if radius > barRect.height, barRect.height > 0
+                {
+                    radius = barRect.height * 0.999
+                }
+
+                let path = UIBezierPath(roundedRect: barRect, cornerRadius: radius)
+
+                context.addPath(path.cgPath)
+                                
+                context.fillPath()
+            }
+            else
+            {
+                context.fill(barRect)
+            }
+
             if drawBorder
             {
                 context.setStrokeColor(borderColor.cgColor)
